@@ -122,6 +122,18 @@ func New(args runtime.Object, handle frameworktypes.Handle) (frameworktypes.Plug
 			return nil
 		})
 	}
+
+	if !defaultEvictorArgs.ForceDeleteTerminatingPods {
+		ev.constraints = append(ev.constraints, func(pod *v1.Pod) error {
+			if utils.IsPodTerminating(pod) {
+				return fmt.Errorf("pod is in terminating state and descheduler is not configured with ForceDeleteTerminatingPods")
+			}
+			return nil
+		})
+	} else {
+		klog.V(1).Info("Warning: ForceDeleteTerminatingPods is set to True. This could cause forceful deletion of pods stuck in the terminating state, potentially leading to unexpected behavior or data loss.")
+	}
+
 	if defaultEvictorArgs.IgnorePvcPods {
 		ev.constraints = append(ev.constraints, func(pod *v1.Pod) error {
 			if utils.IsPodWithPVC(pod) {
@@ -154,7 +166,7 @@ func (d *DefaultEvictor) Name() string {
 func (d *DefaultEvictor) PreEvictionFilter(pod *v1.Pod) bool {
 	defaultEvictorArgs := d.args.(*DefaultEvictorArgs)
 	if defaultEvictorArgs.NodeFit {
-		nodes, err := nodeutil.ReadyNodes(context.TODO(), d.handle.ClientSet(), d.handle.SharedInformerFactory().Core().V1().Nodes().Lister(), defaultEvictorArgs.NodeSelector)
+		nodes, err := nodeutil.ReadyNodes(context.TODO(), d.handle.ClientSet(), d.handle.SharedInformerFactory().Core().V1().Nodes().Lister(), defaultEvictorArgs.NodeSelector, false)
 		if err != nil {
 			klog.ErrorS(err, "unable to list ready nodes", "pod", klog.KObj(pod))
 			return false
@@ -186,10 +198,6 @@ func (d *DefaultEvictor) Filter(pod *v1.Pod) bool {
 
 	if utils.IsStaticPod(pod) {
 		checkErrs = append(checkErrs, fmt.Errorf("pod is a static pod"))
-	}
-
-	if utils.IsPodTerminating(pod) {
-		checkErrs = append(checkErrs, fmt.Errorf("pod is terminating"))
 	}
 
 	for _, c := range d.constraints {

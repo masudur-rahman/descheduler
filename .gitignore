@@ -6,3 +6,5 @@ vendordiff.patch
 .vscode/
 kind
 bin/
+
+.DS_Store

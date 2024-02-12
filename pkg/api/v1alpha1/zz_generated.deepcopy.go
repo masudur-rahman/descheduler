@@ -57,6 +57,11 @@ func (in *DeschedulerPolicy) DeepCopyInto(out *DeschedulerPolicy) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.ForceDeleteTerminatingPods != nil {
+		in, out := &in.ForceDeleteTerminatingPods, &out.ForceDeleteTerminatingPods
+		*out = new(bool)
+		**out = **in
+	}
 	if in.IgnorePVCPods != nil {
 		in, out := &in.IgnorePVCPods, &out.IgnorePVCPods
 		*out = new(bool)
@@ -70,6 +75,11 @@ func (in *DeschedulerPolicy) DeepCopyInto(out *DeschedulerPolicy) {
 	if in.MaxNoOfPodsToEvictPerNamespace != nil {
 		in, out := &in.MaxNoOfPodsToEvictPerNamespace, &out.MaxNoOfPodsToEvictPerNamespace
 		*out = new(uint)
+		**out = **in
+	}
+	if in.ProcessNotReadyNodes != nil {
+		in, out := &in.ProcessNotReadyNodes, &out.ProcessNotReadyNodes
+		*out = new(bool)
 		**out = **in
 	}
 	return

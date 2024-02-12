@@ -38,6 +38,9 @@ type DeschedulerPolicy struct {
 
 	// MaxNoOfPodsToEvictPerNamespace restricts maximum of pods to be evicted per namespace.
 	MaxNoOfPodsToEvictPerNamespace *uint
+
+	// ProcessNotReadyNodes for NotReady nodes for being processed
+	ProcessNotReadyNodes *bool
 }
 
 // Namespaces carries a list of included/excluded namespaces

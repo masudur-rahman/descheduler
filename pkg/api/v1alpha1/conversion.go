@@ -131,6 +131,14 @@ func V1alpha1ToInternal(
 		}
 	}
 
+	forceDeleteTerminatingPods := false
+	if deschedulerPolicy.ForceDeleteTerminatingPods != nil {
+		forceDeleteTerminatingPods = *deschedulerPolicy.ForceDeleteTerminatingPods
+		if forceDeleteTerminatingPods {
+			klog.V(1).Info("Warning: ForceDeleteTerminatingPods is set to True. This could cause forceful deletion of pods stuck in the terminating state, potentially leading to unexpected behavior or data loss.")
+		}
+	}
+
 	evictSystemCriticalPods := false
 	if deschedulerPolicy.EvictSystemCriticalPods != nil {
 		evictSystemCriticalPods = *deschedulerPolicy.EvictSystemCriticalPods
@@ -192,12 +200,13 @@ func V1alpha1ToInternal(
 						{
 							Name: defaultevictor.PluginName,
 							Args: &defaultevictor.DefaultEvictorArgs{
-								EvictLocalStoragePods:   evictLocalStoragePods,
-								EvictSystemCriticalPods: evictSystemCriticalPods,
-								IgnorePvcPods:           ignorePvcPods,
-								EvictFailedBarePods:     evictBarePods,
-								NodeFit:                 nodeFit,
-								PriorityThreshold:       priorityThreshold,
+								EvictLocalStoragePods:      evictLocalStoragePods,
+								EvictSystemCriticalPods:    evictSystemCriticalPods,
+								IgnorePvcPods:              ignorePvcPods,
+								EvictFailedBarePods:        evictBarePods,
+								ForceDeleteTerminatingPods: forceDeleteTerminatingPods,
+								NodeFit:                    nodeFit,
+								PriorityThreshold:          priorityThreshold,
 							},
 						},
 						*pluginConfig,
@@ -234,6 +243,7 @@ func V1alpha1ToInternal(
 	out.NodeSelector = deschedulerPolicy.NodeSelector
 	out.MaxNoOfPodsToEvictPerNamespace = deschedulerPolicy.MaxNoOfPodsToEvictPerNamespace
 	out.MaxNoOfPodsToEvictPerNode = deschedulerPolicy.MaxNoOfPodsToEvictPerNode
+	out.ProcessNotReadyNodes = deschedulerPolicy.ProcessNotReadyNodes
 
 	return nil
 }

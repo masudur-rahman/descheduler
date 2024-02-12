@@ -48,6 +48,7 @@ import (
 	"sigs.k8s.io/descheduler/pkg/descheduler/client"
 	eutils "sigs.k8s.io/descheduler/pkg/descheduler/evictions/utils"
 	nodeutil "sigs.k8s.io/descheduler/pkg/descheduler/node"
+	"sigs.k8s.io/descheduler/pkg/framework/plugins/defaultevictor"
 	"sigs.k8s.io/descheduler/pkg/tracing"
 	"sigs.k8s.io/descheduler/pkg/utils"
 	"sigs.k8s.io/descheduler/pkg/version"
@@ -160,6 +161,7 @@ func (d *descheduler) runDeschedulerLoop(ctx context.Context, nodes []*v1.Node) 
 		d.rs.DryRun,
 		d.deschedulerPolicy.MaxNoOfPodsToEvictPerNode,
 		d.deschedulerPolicy.MaxNoOfPodsToEvictPerNamespace,
+		getForceDeleteTerminatingPodsValue(d.deschedulerPolicy),
 		nodes,
 		!d.rs.DisableMetrics,
 		d.eventRecorder,
@@ -215,6 +217,17 @@ func (d *descheduler) runProfiles(ctx context.Context, client clientset.Interfac
 			continue
 		}
 	}
+}
+
+func getForceDeleteTerminatingPodsValue(deschedulerPolicy *api.DeschedulerPolicy) bool {
+	for _, profile := range deschedulerPolicy.Profiles {
+		for _, plugin := range profile.PluginConfigs {
+			if plugin.Name == defaultevictor.PluginName {
+				return plugin.Args.(*defaultevictor.DefaultEvictorArgs).ForceDeleteTerminatingPods
+			}
+		}
+	}
+	return false
 }
 
 func Run(ctx context.Context, rs *options.DeschedulerServer) error {
@@ -395,6 +408,11 @@ func RunDeschedulerStrategies(ctx context.Context, rs *options.DeschedulerServer
 		nodeSelector = *deschedulerPolicy.NodeSelector
 	}
 
+	var processNotReadyNodes bool
+	if deschedulerPolicy.ProcessNotReadyNodes != nil {
+		processNotReadyNodes = *deschedulerPolicy.ProcessNotReadyNodes
+	}
+
 	var eventClient clientset.Interface
 	if rs.DryRun {
 		eventClient = fakeclientset.NewSimpleClientset()
@@ -419,7 +437,7 @@ func RunDeschedulerStrategies(ctx context.Context, rs *options.DeschedulerServer
 		// A next context is created here intentionally to avoid nesting the spans via context.
 		sCtx, sSpan := tracing.Tracer().Start(ctx, "NonSlidingUntil")
 		defer sSpan.End()
-		nodes, err := nodeutil.ReadyNodes(sCtx, rs.Client, nodeLister, nodeSelector)
+		nodes, err := nodeutil.ReadyNodes(sCtx, rs.Client, nodeLister, nodeSelector, processNotReadyNodes)
 		if err != nil {
 			sSpan.AddEvent("Failed to detect ready nodes", trace.WithAttributes(attribute.String("err", err.Error())))
 			klog.Error(err)

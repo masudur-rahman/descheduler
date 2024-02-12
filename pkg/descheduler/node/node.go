@@ -34,7 +34,7 @@ import (
 
 // ReadyNodes returns ready nodes irrespective of whether they are
 // schedulable or not.
-func ReadyNodes(ctx context.Context, client clientset.Interface, nodeLister listersv1.NodeLister, nodeSelector string) ([]*v1.Node, error) {
+func ReadyNodes(ctx context.Context, client clientset.Interface, nodeLister listersv1.NodeLister, nodeSelector string, listNotReadyNodes bool) ([]*v1.Node, error) {
 	ns, err := labels.Parse(nodeSelector)
 	if err != nil {
 		return []*v1.Node{}, err
@@ -62,6 +62,11 @@ func ReadyNodes(ctx context.Context, client clientset.Interface, nodeLister list
 			node := nItems.Items[i]
 			nodes = append(nodes, &node)
 		}
+	}
+
+	// If user wants to process NotReady nodes, just return already retrieved nodes
+	if listNotReadyNodes {
+		return nodes, nil
 	}
 
 	readyNodes := make([]*v1.Node, 0, len(nodes))

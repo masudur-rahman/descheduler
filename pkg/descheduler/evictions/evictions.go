@@ -29,10 +29,12 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/events"
 	"k8s.io/klog/v2"
-	"sigs.k8s.io/descheduler/metrics"
+	"k8s.io/utils/ptr"
 
+	"sigs.k8s.io/descheduler/metrics"
 	eutils "sigs.k8s.io/descheduler/pkg/descheduler/evictions/utils"
 	"sigs.k8s.io/descheduler/pkg/tracing"
+	"sigs.k8s.io/descheduler/pkg/utils"
 )
 
 // nodePodEvictedCount keeps count of pods evicted on node
@@ -48,6 +50,7 @@ type PodEvictor struct {
 	dryRun                     bool
 	maxPodsToEvictPerNode      *uint
 	maxPodsToEvictPerNamespace *uint
+	forceDeleteTerminatingPods bool
 	nodepodCount               nodePodEvictedCount
 	namespacePodCount          namespacePodEvictCount
 	metricsEnabled             bool
@@ -60,6 +63,7 @@ func NewPodEvictor(
 	dryRun bool,
 	maxPodsToEvictPerNode *uint,
 	maxPodsToEvictPerNamespace *uint,
+	forceDeleteTerminatingPods bool,
 	nodes []*v1.Node,
 	metricsEnabled bool,
 	eventRecorder events.EventRecorder,
@@ -78,6 +82,7 @@ func NewPodEvictor(
 		dryRun:                     dryRun,
 		maxPodsToEvictPerNode:      maxPodsToEvictPerNode,
 		maxPodsToEvictPerNamespace: maxPodsToEvictPerNamespace,
+		forceDeleteTerminatingPods: forceDeleteTerminatingPods,
 		nodepodCount:               nodePodCount,
 		namespacePodCount:          namespacePodCount,
 		metricsEnabled:             metricsEnabled,
@@ -145,7 +150,11 @@ func (pe *PodEvictor) EvictPod(ctx context.Context, pod *v1.Pod, opts EvictOptio
 		return false
 	}
 
-	err := evictPod(ctx, pe.client, pod, pe.policyGroupVersion)
+	var gracePeriodSeconds *int64
+	if utils.IsPodTerminating(pod) && pe.forceDeleteTerminatingPods {
+		gracePeriodSeconds = ptr.To[int64](0)
+	}
+	err := evictPod(ctx, pe.client, pod, pe.policyGroupVersion, gracePeriodSeconds)
 	if err != nil {
 		// err is used only for logging purposes
 		span.AddEvent("Eviction Failed", trace.WithAttributes(attribute.String("node", pod.Spec.NodeName), attribute.String("err", err.Error())))
@@ -181,9 +190,10 @@ func (pe *PodEvictor) EvictPod(ctx context.Context, pod *v1.Pod, opts EvictOptio
 	return true
 }
 
-func evictPod(ctx context.Context, client clientset.Interface, pod *v1.Pod, policyGroupVersion string) error {
-	deleteOptions := &metav1.DeleteOptions{}
-	// GracePeriodSeconds ?
+func evictPod(ctx context.Context, client clientset.Interface, pod *v1.Pod, policyGroupVersion string, gracePeriodSeconds *int64) error {
+	deleteOptions := &metav1.DeleteOptions{
+		GracePeriodSeconds: gracePeriodSeconds,
+	}
 	eviction := &policy.Eviction{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: policyGroupVersion,
@@ -195,6 +205,7 @@ func evictPod(ctx context.Context, client clientset.Interface, pod *v1.Pod, poli
 		},
 		DeleteOptions: deleteOptions,
 	}
+	fmt.Printf("Evicting pod `%v/%v` with grace period 0", pod.Namespace, pod.Name)
 	err := client.PolicyV1().Evictions(eviction.Namespace).Evict(ctx, eviction)
 
 	if apierrors.IsTooManyRequests(err) {

@@ -41,6 +41,9 @@ type DeschedulerPolicy struct {
 	// EvictSystemCriticalPods allows eviction of pods of any priority (including Kubernetes system pods)
 	EvictSystemCriticalPods *bool `json:"evictSystemCriticalPods,omitempty"`
 
+	// ForceDeleteTerminatingPods for deleting pods in Terminating state without grace periods
+	ForceDeleteTerminatingPods *bool `json:"forceDeleteTerminatingPods"`
+
 	// IgnorePVCPods prevents pods with PVCs from being evicted.
 	IgnorePVCPods *bool `json:"ignorePvcPods,omitempty"`
 
@@ -49,6 +52,9 @@ type DeschedulerPolicy struct {
 
 	// MaxNoOfPodsToEvictPerNamespace restricts maximum of pods to be evicted per namespace.
 	MaxNoOfPodsToEvictPerNamespace *uint `json:"maxNoOfPodsToEvictPerNamespace,omitempty"`
+
+	// ProcessNotReadyNodes for NotReady nodes for being processed
+	ProcessNotReadyNodes *bool `json:"processNotReadyNodes"`
 }
 
 type (

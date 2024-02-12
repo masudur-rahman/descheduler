@@ -51,6 +51,11 @@ func (in *DeschedulerPolicy) DeepCopyInto(out *DeschedulerPolicy) {
 		*out = new(uint)
 		**out = **in
 	}
+	if in.ProcessNotReadyNodes != nil {
+		in, out := &in.ProcessNotReadyNodes, &out.ProcessNotReadyNodes
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 
