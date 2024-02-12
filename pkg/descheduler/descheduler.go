@@ -77,6 +77,7 @@ type descheduler struct {
 	namespaceLister            listersv1.NamespaceLister
 	priorityClassLister        schedulingv1.PriorityClassLister
 	getPodsAssignedToNode      podutil.GetPodsAssignedToNodeFunc
+	getPodsNotAssignedToNode   podutil.GetPodsNotAssignedToNodeFunc
 	sharedInformerFactory      informers.SharedInformerFactory
 	evictionPolicyGroupVersion string
 	deschedulerPolicy          *api.DeschedulerPolicy
@@ -95,6 +96,11 @@ func newDescheduler(ctx context.Context, rs *options.DeschedulerServer, deschedu
 		return nil, fmt.Errorf("build get pods assigned to node function error: %v", err)
 	}
 
+	getPodsNotAssignedToNode, err := podutil.BuildGetPodsNotAssignedToNodeFunc(podInformer)
+	if err != nil {
+		return nil, fmt.Errorf("build get pods assigned to node function error: %v", err)
+	}
+
 	return &descheduler{
 		rs:                         rs,
 		podLister:                  podLister,
@@ -102,6 +108,7 @@ func newDescheduler(ctx context.Context, rs *options.DeschedulerServer, deschedu
 		namespaceLister:            namespaceLister,
 		priorityClassLister:        priorityClassLister,
 		getPodsAssignedToNode:      getPodsAssignedToNode,
+		getPodsNotAssignedToNode:   getPodsNotAssignedToNode,
 		sharedInformerFactory:      sharedInformerFactory,
 		evictionPolicyGroupVersion: evictionPolicyGroupVersion,
 		deschedulerPolicy:          deschedulerPolicy,
@@ -190,6 +197,7 @@ func (d *descheduler) runProfiles(ctx context.Context, client clientset.Interfac
 			frameworkprofile.WithSharedInformerFactory(d.sharedInformerFactory),
 			frameworkprofile.WithPodEvictor(podEvictor),
 			frameworkprofile.WithGetPodsAssignedToNodeFnc(d.getPodsAssignedToNode),
+			frameworkprofile.WithGetPodsNotAssignedToNodeFnc(d.getPodsNotAssignedToNode),
 		)
 		if err != nil {
 			klog.ErrorS(err, "unable to create a profile", "profile", profile.Name)

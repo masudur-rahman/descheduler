@@ -205,7 +205,6 @@ func evictPod(ctx context.Context, client clientset.Interface, pod *v1.Pod, poli
 		},
 		DeleteOptions: deleteOptions,
 	}
-	fmt.Printf("Evicting pod `%v/%v` with grace period 0", pod.Namespace, pod.Name)
 	err := client.PolicyV1().Evictions(eviction.Namespace).Evict(ctx, eviction)
 
 	if apierrors.IsTooManyRequests(err) {

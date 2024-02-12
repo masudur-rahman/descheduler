@@ -68,10 +68,11 @@ func (ei *evictorImpl) NodeLimitExceeded(node *v1.Node) bool {
 
 // handleImpl implements the framework handle which gets passed to plugins
 type handleImpl struct {
-	clientSet                 clientset.Interface
-	getPodsAssignedToNodeFunc podutil.GetPodsAssignedToNodeFunc
-	sharedInformerFactory     informers.SharedInformerFactory
-	evictor                   *evictorImpl
+	clientSet                    clientset.Interface
+	getPodsAssignedToNodeFunc    podutil.GetPodsAssignedToNodeFunc
+	getPodsNotAssignedToNodeFunc podutil.GetPodsNotAssignedToNodeFunc
+	sharedInformerFactory        informers.SharedInformerFactory
+	evictor                      *evictorImpl
 }
 
 var _ frameworktypes.Handle = &handleImpl{}
@@ -84,6 +85,11 @@ func (hi *handleImpl) ClientSet() clientset.Interface {
 // GetPodsAssignedToNodeFunc retrieves GetPodsAssignedToNodeFunc implementation
 func (hi *handleImpl) GetPodsAssignedToNodeFunc() podutil.GetPodsAssignedToNodeFunc {
 	return hi.getPodsAssignedToNodeFunc
+}
+
+// GetPodsNotAssignedToNodeFunc retrieves GetPodsNotAssignedToNodeFunc implementation
+func (hi *handleImpl) GetPodsNotAssignedToNodeFunc() podutil.GetPodsNotAssignedToNodeFunc {
+	return hi.getPodsNotAssignedToNodeFunc
 }
 
 // SharedInformerFactory retrieves shared informer factory
@@ -126,10 +132,11 @@ type profileImpl struct {
 type Option func(*handleImplOpts)
 
 type handleImplOpts struct {
-	clientSet                 clientset.Interface
-	sharedInformerFactory     informers.SharedInformerFactory
-	getPodsAssignedToNodeFunc podutil.GetPodsAssignedToNodeFunc
-	podEvictor                *evictions.PodEvictor
+	clientSet                    clientset.Interface
+	sharedInformerFactory        informers.SharedInformerFactory
+	getPodsAssignedToNodeFunc    podutil.GetPodsAssignedToNodeFunc
+	getPodsNotAssignedToNodeFunc podutil.GetPodsNotAssignedToNodeFunc
+	podEvictor                   *evictions.PodEvictor
 }
 
 // WithClientSet sets clientSet for the scheduling frameworkImpl.
@@ -154,6 +161,12 @@ func WithPodEvictor(podEvictor *evictions.PodEvictor) Option {
 func WithGetPodsAssignedToNodeFnc(getPodsAssignedToNodeFunc podutil.GetPodsAssignedToNodeFunc) Option {
 	return func(o *handleImplOpts) {
 		o.getPodsAssignedToNodeFunc = getPodsAssignedToNodeFunc
+	}
+}
+
+func WithGetPodsNotAssignedToNodeFnc(getPodsNotAssignedToNodeFunc podutil.GetPodsNotAssignedToNodeFunc) Option {
+	return func(o *handleImplOpts) {
+		o.getPodsNotAssignedToNodeFunc = getPodsNotAssignedToNodeFunc
 	}
 }
 
@@ -248,9 +261,10 @@ func NewProfile(config api.DeschedulerProfile, reg pluginregistry.Registry, opts
 	}
 
 	handle := &handleImpl{
-		clientSet:                 hOpts.clientSet,
-		getPodsAssignedToNodeFunc: hOpts.getPodsAssignedToNodeFunc,
-		sharedInformerFactory:     hOpts.sharedInformerFactory,
+		clientSet:                    hOpts.clientSet,
+		getPodsAssignedToNodeFunc:    hOpts.getPodsAssignedToNodeFunc,
+		getPodsNotAssignedToNodeFunc: hOpts.getPodsNotAssignedToNodeFunc,
+		sharedInformerFactory:        hOpts.sharedInformerFactory,
 		evictor: &evictorImpl{
 			podEvictor: hOpts.podEvictor,
 		},

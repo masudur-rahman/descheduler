@@ -26,6 +26,7 @@ import (
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
+	"sigs.k8s.io/descheduler/pkg/utils"
 
 	"sigs.k8s.io/descheduler/pkg/descheduler/evictions"
 	podutil "sigs.k8s.io/descheduler/pkg/descheduler/pod"
@@ -67,7 +68,9 @@ func New(args runtime.Object, handle frameworktypes.Handle) (frameworktypes.Plug
 		return nil, fmt.Errorf("error initializing pod filter function: %v", err)
 	}
 
-	podFilter = podutil.WrapFilterFuncs(func(pod *v1.Pod) bool { return pod.Status.Phase == v1.PodFailed }, podFilter)
+	podFilter = podutil.WrapFilterFuncs(podFilter, func(pod *v1.Pod) bool {
+		return pod.Status.Phase == v1.PodFailed || utils.IsPodTerminatingGracePeriodExpired(pod)
+	})
 
 	podFilter = podutil.WrapFilterFuncs(podFilter, func(pod *v1.Pod) bool {
 		if err := validateCanEvict(pod, failedPodsArgs); err != nil {
@@ -137,6 +140,10 @@ func validateCanEvict(pod *v1.Pod, failedPodArgs *RemoveFailedPodsArgs) error {
 
 		if pod.Status.Phase == v1.PodFailed && pod.Status.Reason != "" {
 			reasons = append(reasons, pod.Status.Reason)
+		}
+
+		if utils.IsPodTerminatingGracePeriodExpired(pod) {
+			reasons = append(reasons, "Terminating")
 		}
 
 		if failedPodArgs.IncludingInitContainers {

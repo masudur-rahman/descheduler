@@ -48,12 +48,14 @@ func ValidatePodLifeTimeArgs(obj runtime.Object) error {
 		string(v1.PodRunning),
 		string(v1.PodPending),
 		string(v1.PodUnknown),
+		// string(v1.PodFailed),
 
 		// Pod Status Reasons
 		"NodeAffinity",
 		"NodeLost",
 		"Shutdown",
 		"UnexpectedAdmissionError",
+		"Evicted",
 
 		// Container Status Reasons
 		// Container state reasons: https://github.com/kubernetes/kubernetes/blob/release-1.24/pkg/kubelet/kubelet_pods.go#L76-L79

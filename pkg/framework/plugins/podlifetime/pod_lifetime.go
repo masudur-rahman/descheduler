@@ -137,5 +137,22 @@ func (d *PodLifeTime) Deschedule(ctx context.Context, nodes []*v1.Node) *framewo
 		}
 	}
 
+	return d.deschedulePodsNotYetScheduled(ctx)
+}
+
+func (d *PodLifeTime) deschedulePodsNotYetScheduled(ctx context.Context) *frameworktypes.Status {
+	klog.V(2).InfoS("Processing pods not yet scheduled")
+	pods, err := podutil.ListAllPodsNotOnAnyNode(d.handle.GetPodsNotAssignedToNodeFunc(), d.podFilter)
+	if err != nil {
+		return &frameworktypes.Status{
+			Err: fmt.Errorf("error listing pods yet to schedule on a node: %v", err),
+		}
+	}
+
+	for _, pod := range pods {
+		d.handle.Evictor().Evict(ctx, pod, evictions.EvictOptions{})
+	}
+	println()
+
 	return nil
 }

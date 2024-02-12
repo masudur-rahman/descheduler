@@ -74,10 +74,11 @@ func (ei *evictorImpl) NodeLimitExceeded(node *v1.Node) bool {
 
 // handleImpl implements the framework handle which gets passed to plugins
 type handleImpl struct {
-	clientSet                 clientset.Interface
-	getPodsAssignedToNodeFunc podutil.GetPodsAssignedToNodeFunc
-	sharedInformerFactory     informers.SharedInformerFactory
-	evictor                   *evictorImpl
+	clientSet                    clientset.Interface
+	getPodsAssignedToNodeFunc    podutil.GetPodsAssignedToNodeFunc
+	getPodsNotAssignedToNodeFunc podutil.GetPodsNotAssignedToNodeFunc
+	sharedInformerFactory        informers.SharedInformerFactory
+	evictor                      *evictorImpl
 }
 
 var _ frameworktypes.Handle = &handleImpl{}
@@ -90,6 +91,11 @@ func (hi *handleImpl) ClientSet() clientset.Interface {
 // GetPodsAssignedToNodeFunc retrieves GetPodsAssignedToNodeFunc implementation
 func (hi *handleImpl) GetPodsAssignedToNodeFunc() podutil.GetPodsAssignedToNodeFunc {
 	return hi.getPodsAssignedToNodeFunc
+}
+
+// GetPodsNotAssignedToNodeFunc retrieves GetPodsNotAssignedToNodeFunc implementation
+func (hi *handleImpl) GetPodsNotAssignedToNodeFunc() podutil.GetPodsNotAssignedToNodeFunc {
+	return hi.getPodsNotAssignedToNodeFunc
 }
 
 // SharedInformerFactory retrieves shared informer factory

@@ -13,11 +13,12 @@ import (
 )
 
 type HandleImpl struct {
-	ClientsetImpl                 clientset.Interface
-	GetPodsAssignedToNodeFuncImpl podutil.GetPodsAssignedToNodeFunc
-	SharedInformerFactoryImpl     informers.SharedInformerFactory
-	EvictorFilterImpl             frameworktypes.EvictorPlugin
-	PodEvictorImpl                *evictions.PodEvictor
+	ClientsetImpl                    clientset.Interface
+	GetPodsAssignedToNodeFuncImpl    podutil.GetPodsAssignedToNodeFunc
+	GetPodsNotAssignedToNodeFuncImpl podutil.GetPodsNotAssignedToNodeFunc
+	SharedInformerFactoryImpl        informers.SharedInformerFactory
+	EvictorFilterImpl                frameworktypes.EvictorPlugin
+	PodEvictorImpl                   *evictions.PodEvictor
 }
 
 var _ frameworktypes.Handle = &HandleImpl{}
@@ -28,6 +29,10 @@ func (hi *HandleImpl) ClientSet() clientset.Interface {
 
 func (hi *HandleImpl) GetPodsAssignedToNodeFunc() podutil.GetPodsAssignedToNodeFunc {
 	return hi.GetPodsAssignedToNodeFuncImpl
+}
+
+func (hi *HandleImpl) GetPodsNotAssignedToNodeFunc() podutil.GetPodsNotAssignedToNodeFunc {
+	return hi.GetPodsNotAssignedToNodeFuncImpl
 }
 
 func (hi *HandleImpl) SharedInformerFactory() informers.SharedInformerFactory {

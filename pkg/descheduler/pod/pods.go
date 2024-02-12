@@ -29,7 +29,8 @@ import (
 )
 
 const (
-	nodeNameKeyIndex = "spec.nodeName"
+	nodeNameKeyIndex   = "spec.nodeName"
+	unassignedKeyIndex = "node-unassigned"
 )
 
 // FilterFunc is a filter for a pod.
@@ -38,6 +39,10 @@ type FilterFunc func(*v1.Pod) bool
 // GetPodsAssignedToNodeFunc is a function which accept a node name and a pod filter function
 // as input and returns the pods that assigned to the node.
 type GetPodsAssignedToNodeFunc func(string, FilterFunc) ([]*v1.Pod, error)
+
+// GetPodsNotAssignedToNodeFunc is a function which accepts a pod filter function
+// as input and returns the pods that are not assigned to any node.
+type GetPodsNotAssignedToNodeFunc func(FilterFunc) ([]*v1.Pod, error)
 
 // WrapFilterFuncs wraps a set of FilterFunc in one.
 func WrapFilterFuncs(filters ...FilterFunc) FilterFunc {
@@ -157,6 +162,48 @@ func BuildGetPodsAssignedToNodeFunc(podInformer cache.SharedIndexInformer) (GetP
 	return getPodsAssignedToNode, nil
 }
 
+// BuildGetPodsNotAssignedToNodeFunc establishes an indexer to map the pods and their assigned nodes.
+// It returns a function to help us get all the pods that are not assigned to any node based on the indexer.
+func BuildGetPodsNotAssignedToNodeFunc(podInformer cache.SharedIndexInformer) (GetPodsNotAssignedToNodeFunc, error) {
+	// Establish an indexer to map the pods and their assigned nodes.
+	err := podInformer.AddIndexers(cache.Indexers{
+		unassignedKeyIndex: func(obj interface{}) ([]string, error) {
+			pod, ok := obj.(*v1.Pod)
+			if !ok {
+				return []string{}, nil
+			}
+			if len(pod.Spec.NodeName) != 0 {
+				return []string{}, nil
+			}
+			return []string{"unassigned"}, nil
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// The indexer helps us get all the pods that are not assigned to a node.
+	podIndexer := podInformer.GetIndexer()
+	getPodsNotAssignedToNode := func(filter FilterFunc) ([]*v1.Pod, error) {
+		objs, err := podIndexer.ByIndex(unassignedKeyIndex, "unassigned")
+		if err != nil {
+			return nil, err
+		}
+		pods := make([]*v1.Pod, 0, len(objs))
+		for _, obj := range objs {
+			pod, ok := obj.(*v1.Pod)
+			if !ok {
+				continue
+			}
+			if filter(pod) {
+				pods = append(pods, pod)
+			}
+		}
+		return pods, nil
+	}
+	return getPodsNotAssignedToNode, nil
+}
+
 // ListPodsOnNodes returns all pods on given nodes.
 func ListPodsOnNodes(nodes []*v1.Node, getPodsAssignedToNode GetPodsAssignedToNodeFunc, filter FilterFunc) ([]*v1.Pod, error) {
 	pods := make([]*v1.Pod, 0)
@@ -194,6 +241,19 @@ func ListAllPodsOnANode(
 	filter FilterFunc,
 ) ([]*v1.Pod, error) {
 	pods, err := getPodsAssignedToNode(nodeName, filter)
+	if err != nil {
+		return []*v1.Pod{}, err
+	}
+
+	return pods, nil
+}
+
+// ListAllPodsNotOnAnyNode lists all the pods on a node no matter what the phase of the pod is.
+func ListAllPodsNotOnAnyNode(
+	getPodsNotAssignedToNode GetPodsNotAssignedToNodeFunc,
+	filter FilterFunc,
+) ([]*v1.Pod, error) {
+	pods, err := getPodsNotAssignedToNode(filter)
 	if err != nil {
 		return []*v1.Pod{}, err
 	}

@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"time"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -71,6 +72,18 @@ func IsMirrorPod(pod *v1.Pod) bool {
 // IsPodTerminating returns true if the pod DeletionTimestamp is set.
 func IsPodTerminating(pod *v1.Pod) bool {
 	return pod.DeletionTimestamp != nil
+}
+
+func IsPodTerminatingGracePeriodExpired(pod *v1.Pod) bool {
+	if !IsPodTerminating(pod) {
+		return false
+	}
+
+	if pod.DeletionGracePeriodSeconds != nil {
+		gracePeriodSeconds := float64(*pod.DeletionGracePeriodSeconds)
+		return time.Since(pod.DeletionTimestamp.Time).Seconds() > gracePeriodSeconds
+	}
+	return true
 }
 
 // IsStaticPod returns true if the pod is a static pod.

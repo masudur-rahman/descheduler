@@ -35,6 +35,7 @@ type Handle interface {
 	ClientSet() clientset.Interface
 	Evictor() Evictor
 	GetPodsAssignedToNodeFunc() podutil.GetPodsAssignedToNodeFunc
+	GetPodsNotAssignedToNodeFunc() podutil.GetPodsNotAssignedToNodeFunc
 	SharedInformerFactory() informers.SharedInformerFactory
 }
 
